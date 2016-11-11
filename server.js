@@ -61,14 +61,14 @@ var sync = new (function() {
     this.addObject = addObject;
 
     function encodeObject(obj) {
-        console.log(obj);
-        var tmp = {};
+        // We store complex data out-of-line to help prevent bad data attacks.
+        var tmp = {'data': {}, 'functions': {}};
         for(var f in obj) {
             if(typeof obj[f] == 'function') {
-                tmp[f] = {'syncType': 'function', 'value': '(' + obj[f].toString() + ')'};
+                tmp.functions[f] = {'value': '(' + obj[f].toString() + ')'};
             }
             else {
-                tmp[f] = obj[f]
+                tmp.data[f] = obj[f]
             }
         }
         return tmp;
