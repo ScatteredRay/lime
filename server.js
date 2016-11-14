@@ -3,7 +3,6 @@ var url = require('url');
 var fs = require('fs');
 var path = require('path');
 var WebSockets = require('ws');
-//var JSON = require('JSON');
 
 function typeFromPath(filePath) {
     var ext = path.extname(filePath);
@@ -108,12 +107,53 @@ wss.on('connection', function(ws) {
 
 // Test objects.
 
-var ClientScene = {};
+var app = new(function() {
+    var vm = require('vm');
 
-ClientScene.init = function() {
-    var win = document.getElementById('lime-window');
-    console.dir(win);
-};
+    var appList = {};
 
-sync.addObject(ClientScene, 'ClientScene');
+    var header = "(function(exports){";
+    var footer = "\n});";
+
+    function LoadAppFile(mod) {
+        var file = appList[mod].file;
+        fs.readFile(
+            file,
+            function(err, data) {
+                if(err) {
+                    console.log(err);
+                    return;
+                }
+                appList[mod].source = data;
+                var evalSrc = header + data + footer;
+                var fn = vm.runInThisContext(evalSrc, { filename: mod });
+                if(typeof appList[mod].object === 'undefined') {
+                    appList[mod].object = {};
+                    sync.addObject(appList[mod].object, mod);
+                }
+                // Alternativelly we could create a new place and update after if that helps sync.
+                var exports = appList[mod].object;   
+                fn(exports);
+            });
+    }
+
+    function ReadAppManifest(manifest) {
+        fs.readFile(
+            manifest,
+            function(err, data) {
+                if(err) {
+                    console.log(err);
+                    return;
+                }
+                var appFiles = JSON.parse(data);
+                for(var mod in appFiles) {
+                    appList[mod] = {file: appFiles[mod]};
+                    LoadAppFile(mod);
+                }
+            });
+    }
+    this.ReadAppManifest = ReadAppManifest;
+});
+
+app.ReadAppManifest('app.json');
 
