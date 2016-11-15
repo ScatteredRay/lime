@@ -53,6 +53,10 @@ http.createServer(function(req, res) {
 
 var sync = new (function() {
     var syncObjects = {};
+    var dirtyObjects = [];
+    var clients = {};
+
+    var syncID = undefined;
 
     function addObject(obj, name) {
         syncObjects[name] = obj;
@@ -74,15 +78,50 @@ var sync = new (function() {
     }
     this.encodeObject = encodeObject;
 
+    function dirtyObject(obj, name) {
+        dirtyObjects.push(name);
+        if(!syncID) {
+            syncID = setImmediate(syncDirty);
+        }
+    }
+    this.dirtyObject = dirtyObject;
+
+    function sendToAll(data) {
+        for(var clientID in clients) {
+            var client = clients[clientID];
+            client.send(data);
+        }
+    }
+
+    function syncDirty() {
+        syncID = undefined;
+        for(var i in dirtyObjects) {
+            var o = dirtyObjects[i];
+            sendToAll(JSON.stringify(
+                {'action': 'update',
+                 'key': o,
+                 'content': encodeObject(syncObjects[o])
+                }));
+        };
+        dirtyObjects.length = 0;
+    }
+
     function initClient(clientId, send) {
+        clients[clientId] = {'send': send};
         for(var o in syncObjects) {
             send(JSON.stringify(
                 {'action': 'create',
                  'key': o,
-                 'content': encodeObject(syncObjects[o])}));
+                 'content': encodeObject(syncObjects[o])
+                }));
         }
     }
     this.initClient = initClient;
+
+    function closeClient(clientId) {
+        delete clients[clientId];
+    }
+    this.closeClient = closeClient;
 });
 
 var wss = new WebSockets.Server({port: 8181});
@@ -100,7 +139,11 @@ wss.on('connection', function(ws) {
     ws.on('message', function(data) {
         console.log(data);
     });
+
     var clientId = '1'; //TEMP
+    ws.on('close', function() {
+        sync.closeClient(clientId);
+    });
     sync.initClient(clientId, send);
 });
 
@@ -109,6 +152,7 @@ wss.on('connection', function(ws) {
 
 var app = new(function() {
     var vm = require('vm');
+    var chokidar = require('chokidar');
 
     var appList = {};
 
@@ -117,24 +161,31 @@ var app = new(function() {
 
     function LoadAppFile(mod) {
         var file = appList[mod].file;
-        fs.readFile(
-            file,
-            function(err, data) {
-                if(err) {
-                    console.log(err);
-                    return;
-                }
-                appList[mod].source = data;
-                var evalSrc = header + data + footer;
-                var fn = vm.runInThisContext(evalSrc, { filename: mod });
-                if(typeof appList[mod].object === 'undefined') {
-                    appList[mod].object = {};
-                    sync.addObject(appList[mod].object, mod);
-                }
-                // Alternativelly we could create a new place and update after if that helps sync.
-                var exports = appList[mod].object;   
-                fn(exports);
-            });
+        function readFile() {
+            fs.readFile(
+                file,
+                function(err, data) {
+                    if(err) {
+                        console.log(err);
+                        return;
+                    }
+                    appList[mod].source = data;
+                    var evalSrc = header + data + footer;
+                    var fn = vm.runInThisContext(evalSrc, { filename: mod });
+                    if(typeof appList[mod].object === 'undefined') {
+                        appList[mod].object = {};
+                        sync.addObject(appList[mod].object, mod);
+                    }
+                    // Alternativelly we could create a new place and update after if that helps sync.
+                    var exports = appList[mod].object;   
+                    fn(exports);
+                    sync.dirtyObject(exports, mod);
+                });
+        };
+        chokidar.watch(file).on('change', function(path, stats) {
+            readFile();
+        });
+        readFile();
     }
 
     function ReadAppManifest(manifest) {
@@ -156,4 +207,3 @@ var app = new(function() {
 });
 
 app.ReadAppManifest('app.json');
-

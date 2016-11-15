@@ -1,4 +1,5 @@
 (function(window, document) {
+    var syncObjects = {};
 
     var sync = new (function() {
         this.decodeObject = function(obj) {
@@ -16,6 +17,18 @@
             switch(f.action) {
             case 'create':
                 var newObj = this.decodeObject(f.content);
+                syncObjects[f.key] = newObj;
+                if(typeof newObj.init == 'function') {
+                    newObj.init();
+                }
+                break;
+            case 'update':
+                if(typeof syncObjects[f.key] !== 'undefined' &&
+                   typeof syncObjects[f.key].destroy !== 'undefined') {
+                    syncObjects[f.key].destroy();
+                }
+                var newObj = this.decodeObject(f.content);
+                syncObjects[f.key] = newObj; // TODO: Patch old object
                 if(typeof newObj.init == 'function') {
                     newObj.init();
                 }
