@@ -1,3 +1,7 @@
 {
-    "ClientScene": "clientscene.js"
+    "source": {
+        "ClientScene": "clientscene.js"
+    },
+    "content": {
+    }
 }

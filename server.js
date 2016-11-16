@@ -46,6 +46,16 @@ http.createServer(function(req, res) {
     else if(req.url.match(/^\/js\/[^.\\\/]*\.js/)) {
         fileResponse(req.url.replace(/^\//g, ""), "application/javascript")(res);
     }
+    else if(req.url.match(/^\/content\/.*$/)) {
+        var contentFile = app.contentMap[req.url.replace(/^\/content\//g, "")];
+        if(typeof contentFile !== 'undefined') {
+            fileResponse(contentFile, "application/javascript")(res);
+        }
+        else {
+            res.writeHead(404, "text/plain");
+            res.end("Error reading file");
+        }
+    }
     else {
         fileResponse("client.html", "text/html")(res);
     }
@@ -159,6 +169,9 @@ var app = new(function() {
     var header = "(function(exports){";
     var footer = "\n});";
 
+    var contentMap = {};
+    this.contentMap = contentMap;
+
     function LoadAppFile(mod) {
         var file = appList[mod].file;
         function readFile() {
@@ -189,19 +202,32 @@ var app = new(function() {
     }
 
     function ReadAppManifest(manifest) {
-        fs.readFile(
-            manifest,
-            function(err, data) {
-                if(err) {
-                    console.log(err);
-                    return;
-                }
-                var appFiles = JSON.parse(data);
-                for(var mod in appFiles) {
-                    appList[mod] = {file: appFiles[mod]};
-                    LoadAppFile(mod);
-                }
-            });
+        function readAppFile() {
+            fs.readFile(
+                manifest,
+                function(err, data) {
+                    if(err) {
+                        console.log(err);
+                        return;
+                    }
+                    var appData = JSON.parse(data);
+                    var appFiles = appData.source;
+                    for(var mod in appFiles) {
+                        if(typeof appList[mod] === 'undefined') {
+                            appList[mod] = {file: appFiles[mod]};
+                            LoadAppFile(mod);
+                        }
+                    }
+                    var content = appData.content;
+                    for(var path in content) {
+                        contentMap[path] = content[path];
+                    }
+                });
+        }
+        chokidar.watch(manifest).on('change', function(path, stats) {
+            readAppFile();
+        });
+        readAppFile();
     }
     this.ReadAppManifest = ReadAppManifest;
 });
