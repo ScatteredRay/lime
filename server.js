@@ -71,6 +71,7 @@ var sync = new (function() {
     function addObject(obj, name) {
         console.log("Added object: " + name);
         syncObjects[name] = obj;
+        obj._name = name;
         sendToAll(JSON.stringify(
             {'action': 'create',
              'key': name,
@@ -95,7 +96,13 @@ var sync = new (function() {
     this.encodeObject = encodeObject;
 
     function dirtyObject(obj, name) {
-        dirtyObjects.push(name);
+        dirtyObjects.push(obj);
+        if(typeof obj._dependants !== 'undefined') {
+            for(var i in obj._dependants) {
+                var dep = obj._dependants[i];
+                dirtyObject(syncObjects[dep], dep);
+            }
+        }
         if(!syncID) {
             syncID = setImmediate(syncDirty);
         }
@@ -109,14 +116,24 @@ var sync = new (function() {
         }
     }
 
+    function prioritySort(objs) {
+        return objs.sort(
+            function(a, b) {
+                return b._priority - a._priority;
+            });
+    }
+
     function syncDirty() {
         syncID = undefined;
-        for(var i in dirtyObjects) {
-            var o = dirtyObjects[i];
+        var objs = prioritySort(dirtyObjects);
+        console.log("syncing");
+        console.log(objs);
+        for(var i in objs) {
+            var o = objs[i];
             sendToAll(JSON.stringify(
                 {'action': 'update',
-                 'key': o,
-                 'content': encodeObject(syncObjects[o])
+                 'key': o._name,
+                 'content': encodeObject(o)
                 }));
         };
         dirtyObjects.length = 0;
@@ -124,11 +141,16 @@ var sync = new (function() {
 
     function initClient(clientId, send) {
         clients[clientId] = {'send': send};
-        for(var o in syncObjects) {
+
+        //var objs = prioritySort(Object.values(syncObjects)); // Upgrade node
+        var objs = prioritySort(Object.keys(syncObjects).map((key) => syncObjects[key]));
+        
+        for(var i in objs) {
+            var o = objs[i];
             send(JSON.stringify(
                 {'action': 'create',
-                 'key': o,
-                 'content': encodeObject(syncObjects[o])
+                 'key': o._name,
+                 'content': encodeObject(o)
                 }));
         }
     }
@@ -189,16 +211,70 @@ var app = new(function() {
                         console.log(err);
                         return;
                     }
-                    appList[mod].source = data;
+                    var module = appList[mod]
+                    module.source = data;
+                    module.name = mod;
+                    if(typeof module.dependants === 'undefined') {
+                        module.dependants = [];
+                    }
                     var evalSrc = header + data + footer;
                     var fn = vm.runInThisContext(evalSrc, { filename: mod });
-                    if(typeof appList[mod].object === 'undefined') {
-                        appList[mod].object = {};
+                    if(typeof module.object === 'undefined') {
+                        module.object = {};
                         sync.addObject(appList[mod].object, mod);
+                    }
+                    else {
+                        // Clean up old dependencies
+                        if(typeof module.depends !== 'undefined') {
+                            for(var i in module.depends) {
+                                var dep = module.depends[i];
+                                if(typeof appList[dep] !== 'undefined' &&
+                                   typeof appList[dep].dependants !== 'undefined') {
+                                    var idx = appList[dep].dependants.indexOf(mod);
+                                    if(idx >= 0) {
+                                        appList[dep].dependants.splice(idx, 1);
+                                    }
+                                }
+                            }
+}
                     }
                     // Alternativelly we could create a new place and update after if that helps sync.
                     var exports = appList[mod].object;   
                     fn(exports);
+
+                    // Maintain load priority
+                    //TODO: Should this really exist in the module or the obj? 
+                    module.object._priority = 0;
+                    module.depends = exports._depends;
+                    exports._dependants = module.dependants
+
+                    for(var i in module.dependants) {
+                        var dep = module.dependants[i];
+                        module.object._priority = Math.max(module.object._priority, appList[dep].object._priority + 1);
+                    }
+
+                    function pushPriority(module) {
+                        for(var i in module.depends) {
+                            var dep = module.depends[i];
+                            if(typeof appList[dep] === 'undefined') {
+                                appList[dep] = {}
+                            }
+                            if(typeof appList[dep].object === 'undefined') {
+                                appList[dep].object = {};
+                            }
+                            appList[dep].object._priority = Math.max(appList[dep].object._priority, module.object._priority + 1);
+                            if(typeof appList[dep].dependants === 'undefined') {
+                                appList[dep].dependants = [];
+                            }
+                            console.log("Adding " + module.name + " as dependant to " + dep);
+                            appList[dep].dependants.push(module.name);
+                            pushPriority(appList[dep]);
+                        }
+                    }
+
+                    pushPriority(module);
+                    
+
                     sync.dirtyObject(exports, mod);
                 });
         };
