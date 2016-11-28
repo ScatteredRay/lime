@@ -69,7 +69,13 @@ var sync = new (function() {
     var syncID = undefined;
 
     function addObject(obj, name) {
+        console.log("Added object: " + name);
         syncObjects[name] = obj;
+        sendToAll(JSON.stringify(
+            {'action': 'create',
+             'key': name,
+             'content': encodeObject(obj)
+            }));
     }
     this.addObject = addObject;
 
@@ -175,6 +181,7 @@ var app = new(function() {
     function LoadAppFile(mod) {
         var file = appList[mod].file;
         function readFile() {
+            console.log("Loading file: " + file);
             fs.readFile(
                 file,
                 function(err, data) {
@@ -203,6 +210,7 @@ var app = new(function() {
 
     function ReadAppManifest(manifest) {
         function readAppFile() {
+            console.log("Loading app manifest file: " + manifest);
             fs.readFile(
                 manifest,
                 function(err, data) {

@@ -1,5 +1,8 @@
 (function(window, document) {
     var syncObjects = {};
+    window.syncObjects = syncObjects; // For debug access.
+    //TODO: pull 'root' from app.json
+    window['root'] = syncObjects
 
     var sync = new (function() {
         this.decodeObject = function(obj) {
@@ -18,13 +21,13 @@
             case 'create':
                 var newObj = this.decodeObject(f.content);
                 syncObjects[f.key] = newObj;
-                if(typeof newObj.init == 'function') {
+                if(typeof newObj.init === 'function') {
                     newObj.init();
                 }
                 break;
             case 'update':
                 if(typeof syncObjects[f.key] !== 'undefined' &&
-                   typeof syncObjects[f.key].destroy !== 'undefined') {
+                   typeof syncObjects[f.key].destroy === 'function') {
                     syncObjects[f.key].destroy();
                 }
                 var newObj = this.decodeObject(f.content);
