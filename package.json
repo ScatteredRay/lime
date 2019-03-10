@@ -1,0 +1,24 @@
+{
+  "name": "lime",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "scripts": {
+    "test": "node server.js",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ScatteredRay/lime.git"
+  },
+  "author": "Indy Ray",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ScatteredRay/lime/issues"
+  },
+  "homepage": "https://github.com/ScatteredRay/lime#readme",
+  "dependencies": {
+    "chokidar": "^2.1.2",
+    "ws": "^6.2.0"
+  }
+}
