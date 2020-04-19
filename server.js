@@ -41,7 +41,7 @@ function fileResponse(filename, type, headers) {
 http.createServer(function(req, res) {
     var query = url.parse(req.url, true).query;
     if(req.url.match(/^\/client\.js/)) {
-        fileResponse("client.js", "application/javascript")(res);
+        fileResponse("lib/client/client.js", "application/javascript")(res);
     }
     else if(req.url.match(/^\/js\/[^.\\\/]*\.js/)) {
         fileResponse(req.url.replace(/^\//g, ""), "application/javascript")(res);
@@ -57,7 +57,7 @@ http.createServer(function(req, res) {
         }
     }
     else {
-        fileResponse("client.html", "text/html")(res);
+        fileResponse("lib/client/index.html", "text/html")(res);
     }
 }).listen(8080, null);
 
