@@ -4,8 +4,8 @@
   "description": "",
   "main": "server.js",
   "scripts": {
-    "test": "node lib/server.js",
-    "start": "node lib/server.js"
+    "test": "node lib/host.js",
+    "start": "node lib/host.js"
   },
   "repository": {
     "type": "git",
