@@ -44,7 +44,7 @@ http.createServer(function(req, res) {
         fileResponse("lib/client/client.js", "application/javascript")(res);
     }
     else if(req.url.match(/^\/js\/[^.\\\/]*\.js/)) {
-        fileResponse(req.url.replace(/^\//g, ""), "application/javascript")(res);
+        fileResponse("app/res/" + req.url.replace(/^\//g, ""), "application/javascript")(res);
     }
     else if(req.url.match(/^\/content\/.*$/)) {
         var contentFile = app.contentMap[req.url.replace(/^\/content\//g, "")];
@@ -298,7 +298,8 @@ var app = new(function() {
                     var appFiles = appData.source;
                     for(var mod in appFiles) {
                         if(typeof appList[mod] === 'undefined') {
-                            appList[mod] = {file: appFiles[mod]};
+                            let filename = "app/src/" + appFiles[mod];
+                            appList[mod] = {file: filename};
                             LoadAppFile(mod);
                         }
                     }
@@ -316,4 +317,4 @@ var app = new(function() {
     this.ReadAppManifest = ReadAppManifest;
 });
 
-app.ReadAppManifest('app.json');
+app.ReadAppManifest('app/app.json');
