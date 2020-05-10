@@ -1,4 +1,7 @@
 {
+    "processors" : {
+        ".js": "js.js"
+    },
     "source": {
         "ClientScene": "clientscene.js",
         "Environment": "environment.js"
