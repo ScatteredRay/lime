@@ -1,7 +1,8 @@
 var ClientScene = exports;
 
 ClientScene.init = function() {
-    this.win = document.getElementById('lime-window');
+    this.win = document.createElement('div');
+    document.body.appendChild(this.win);
     this.container = document.createElement('div');
     this.win.appendChild(this.container);
 
