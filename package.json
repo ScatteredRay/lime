@@ -18,7 +18,7 @@
   },
   "homepage": "https://github.com/ScatteredRay/lime#readme",
   "dependencies": {
-    "chokidar": "^2.1.2",
+    "chokidar": "^3.5.3",
     "ws": "^6.2.0"
   }
 }
