@@ -4,7 +4,9 @@
     },
     "source": {
         "ClientScene": "clientscene.js",
-        "Environment": "environment.js"
+        "Environment": "environment.js",
+        "Ian": "ian.js",
+        "Camera": "camera.js"
     },
     "content": {
     }
